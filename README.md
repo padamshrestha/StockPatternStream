@@ -1,125 +1,125 @@
 # Stock Pattern Stream
-### 현재 주가 차트와 유사한 과거 차트를 실시간으로 찾아주는 분석 서비스
+### Analysis service that finds past charts similar to the current stock price chart in real time
 
-주식 종목의 가격과 거래량을 보고 금융 시장의 흐름을 예측하는 것을 "기술적 분석"이라 합니다.
-종목의 주가 패턴은 때떄로 반복적으로 나타나기도 하며, 주식 거래를 하는 많은 사람들이 주가를 예측하기 위해 이러한 패턴을 분석하곤 합니다.
-다음 그림처럼 만약 현재의 주가 차트가 과거의 어떤 시점과 매우 유사하다면, 해당 과거 시점의 추이가 현재 주가의 추이를 예측하는데 도움이 될 수도 있습니다.
+Forecasting the flow of financial markets by looking at the price and volume of stocks is called "technical analysis."
+The stock's stock price pattern is sometimes repeated, and many people who trade stocks analyze these patterns to predict their stock price.
+As shown in the following figure, if the current stock price chart is very similar to a point in time in the past, the trend at that point in time may help predict the current price trend.
 
 <p align="center">
   <img src="img/introduce.png" alt="introduce" width="70%">
 </p>
 
-본 레포지터리는 *"종목의 과거 주가 차트에서 현재 차트와 가장 유사한 구간을 실시간으로 찾아주는 프로그램이 있다면 편리하지 않을까?"*
-라는 아이디어를 Spark Streaming으로 구현한 것입니다.
+This repositories *" Wouldn't it be convenient if there is a program that finds in real time the section most similar to the current chart in the stock's past stock chart?"*
+Is the implementation of Spark Streaming.
 
 
 ## 1. Architecture
 
-### 1.1. 실시간 과거 패턴 찾기
+### 1.1. Find real-time past patterns
 
-본 프로세스에선 종목의 과거 주가 차트에 window sliding을 적용하여 n 크기의 슬라이드들을 생성합니다.
+In this process, window sliding is applied to the stock's past stock price chart to create n-sized slides.
 
-Spark Streaming Job은 종목의 "최근 n개 분봉"을 입력받으면, 
-미리 생성한 슬라이드들과 Pearson 상관계수를 계산하여 가장 유사한 슬라이드를 찾습니다.
+Spark Streaming Job receives the "last n salary" of the item, 
+Calculate the Pearson correlation coefficient with the pre-generated slides to find the closest slide.
 
 <p align="center">
   <img src="img/job_input_output.png" alt="job_input_output" width="60%">
 </p>
 
-한 종목에 대하여 위와 같은 패턴 찾기 작업이 parallel하게 수행됩니다. 
-분석 대상 종목이 여러 개인 경우, 본 작업을 각 종목에 대해 순차적으로 수행합니다.
+The above pattern search is performed in parallel for one item. 
+If there are multiple items to be analyzed, this task is performed sequentially for each item.
 
-### 1.2. 전체 구성
+### 1.2. Full configuration
 <p align="center">
   <img src="img/architecture.png" alt="architecture" width="85%">
 </p>
 
-- <b>Kafka Producer</b>
-  - 키움 OpenAPI 등으로 종목 분봉 데이터를 실시간으로 수집하여 Kafka에 전송해주는 producer 프로세스
-  - 분석 대상 종목들의 최근 n개 분봉을 전송
-- <b>Kafka</b>
-  - 분봉 데이터 저장 Queue
-- <b>실시간 과거 패턴 찾기</b>
-  - 본 레포지터리의 구현 범위
-  - Spark Streaming Job으로 Kafka의 데이터를 입력 받아 실시간으로 분석
-  - 분석 결과를 FS에 저장
-- <b>ELK Stack</b>
-  - Logstash, Elasticsearch, Kibana를 이용하여 실시간 분석 결과를 시각화
-  - Logstash: 저장된 분석 결과를 Elasticsearch에 입력
-  - Kibana: 실시간 분석 결과를 대시보드에 시각화
+-<b>Kafka Producer</b>
+  -Producer process that collects item distribution data in real time through Kiwoom OpenAPI and sends it to Kafka
+  -The latest n distributions of the items to be analyzed are transmitted.
+-<b>Kafka</b>
+  -Distribution data storage queue
+-<b>Find real-time past patterns</b>
+  -Scope of implementation of this repository
+  -Real-time analysis of Kafka data input with Spark Streaming Job
+  -Save analysis results in FS
+-<b>ELK Stack</b>
+  -Visualize real-time analysis results using Logstash, Elasticsearch, and Kibana
+  -Logstash: Enter saved analysis results into Elasticsearch
+  -Kibana: Visualize real-time analysis results on the dashboard
 
 
-### 1.3. 분석 스펙
+### 1.3. Analysis specifications
 
-- <b>Spark Mode</b>
-  - Standalone (별도의 Hadoop cluster 없이 동작)
-  - (Hadoop cluster 모드는 추후 고려 예정)
-- <b>Streaming Perfomance</b>
-  - 10개 이내 종목에 대해 1분 단위 (batchInterval) 스트리밍 분석
-  - default batchInterval은 5분으로 설정됨
-- <b>분석 데이터 길이</b>
-  - window slide 길이 n: 59 분봉
-  - 과거치 분봉 데이터 길이: 629 분봉
+-<b>Spark Mode</b>
+  -Standalone (Operation without a separate Hadoop cluster)
+  -(Hadoop cluster mode will be considered later)
+-<b>Streaming Perfomance</b>
+  -Streaming analysis of 10 minutes within 1 minute (batchInterval)
+  -The default batchInterval is set to 5 minutes
+-<b>Analysis data length</b>
+  -window slide length n: 59 minutes
+  -Past salary data length: 629 salary
   
-### 1.4. Input/Output 데이터 구조
-현재 일봉 데이터로 분봉을 대체하고 있으며, 추후 분봉으로 변경 예정임
+### 1.4. Input/Output data structure
+Currently, the daily salary data is being replaced, and it will be changed to the salary later
 
 |input data| -> |output data|
 |:---:|:---:|:---:|
-|종목별 과거분봉 데이터</br>종목별 실시간 분봉 데이터</br>종목코드->종목명 매핑 테이블|(*spark streaming job*)|실시간 분석 결과|
+|Past data by item</br>Real-time data by item</br>Item code->Item name mapping table|(*spark streaming job*)|Real-time analysis result|
 
-- (Input) <b>종목별 과거 분봉 데이터</b>
-  - 입력 방식: spark-submit argument 중 ```--hist-path [file path]```로 파일 경로 입력
-  - 데이터 포맷: json
+-(Input) <b>Past salary data by event</b>
+  -Input method: Enter the file path with ```--hist-path [file path]`'' among spark-submit arguments
+  -Data format: json
     ```
-    // {시간1:분봉가격, 시간2:분봉가격, ..., 시간629:분봉가격, symb:종목코드}
+    // {hour1: salary price, hour2: salary price, ..., time 629:salary price, symb:item code}
     {"20160201": 5630,"20160202": 5633,...,"symb":"A123456"},{...},...
     ```
-- (Input) <b>종목별 실시간 분봉 데이터</b>
-  - 입력 방식: kafka consuming (message's value)
-  - 데이터 포맷: json
+-(Input) <b>Real-time distribution data for each event</b>
+  -Input method: kafka consuming (message's value)
+  -Data format: json
     ```
-    // {시간1:분봉가격, 시간2:분봉가격, ..., 시간59:분봉가격, symb:종목코드}
+    // {hour1: minute price, hour2: minute price, ..., time59: minute price, symb:item code}
     {"20160201": 5630,"20160202": 5633,...,"symb":"A123456"},{...},...
     ```
-- (Input) <b>종목코드->종목명 매핑 테이블</b>
-  - 입력 방식: spark-submit argument 중 ```--symb2name-path [file path]```로 파일 경로 입력
-  - 데이터 포맷: json
+-(Input) <b>Item code->Item name mapping table</b>
+  -Input method: Enter a file path with ```--symb2name-path [file path]`'' among spark-submit arguments
+  -Data format: json
     ```
-    // [{"symb":종목코드,"name":종목명}, ...]
-    [{"symb":"A001720","name":"신영증권"},...]
+    // [{"symb":item code,"name":item name}, ...]
+    [{"symb":"A001720","name":"Shinyoung Securities"},...]
     ```
-- (Output) <b>실시간 분석 결과</b>
-  - 저장 방식: spark-submit argument 중 ```--output-dir [directory path]``` 값 경로에 파일로 저장
-  - 데이터 포맷: csv
+-(Output) <b>Real-time analysis result</b>
+  -Saving method: Save as a file in the value path of ```--output-dir [directory path]`'' among spark-submit arguments
+  -Data format: csv
     ```
-    // 종목코드,종목명,실시간분봉시간,실시간분봉가격,과거분봉시간,과거분봉가격,버전,상관계수
-    A097950,CJ제일제당,20190705,294000.0,20190402,326000.0,20190930,0.949744
-    A097950,CJ제일제당,20190708,289000.0,20190403,326000.0,20190930,0.949744
-    A097950,CJ제일제당,20190709,284000.0,20190404,325000.0,20190930,0.949744
-    ...(후략)...
+    // item code, item name, real-time installment time, real-time installment price, past installment time, past installment price, version, correlation number
+    A097950, CJ CheilJedang, 20190705,294000.0,20190402,326000.0,20190930,0.949744
+    A097950, CJ CheilJedang, 20190708,289000.0,20190403,326000.0,20190930,0.949744
+    A097950, CJ CheilJedang, 20190709,284000.0,20190404,325000.0,20190930,0.949744
+    ...(Omitted)...
     ```
-  - 데이터 시각화 예시 (CJ제일제당, 유사도 94%)
-    - Now: 실시간분봉시간에 따른 실시간분봉가격
-    - Then: 과거분봉시간에 따른 과거분봉가격
+  -Data visualization example (CJ CheilJedang, similarity 94%)
+    -Now: Real-time distribution price according to real-time distribution time
+    -Then: Past installment price according to past installment time
     <p align="left">
       <img src="img/result_plot.png" alt="result_plot" width="50%">
     </p>
 
 
  
-### 1.5. 주요 소스 코드
+### 1.5. Main source code
 
-- <b>StockPatternStream.scala</b>
-  - 메인 싱글톤. arguments parsing 및 분석 함수 호출
-- <b>Preprocessor.scala</b>
-  - DataFrame 전처리 수행
-- <b>PatternFinder.scala</b>
-  - Spark ML을 이용한 Correlation 계산
-- <b>StreamingManager.scala</b>
-  - Spark Streaming 정의
-- <b>CommonUtils.scala</b>
-  - 유틸리티 함수 모음
+-<b>StockPatternStream.scala</b>
+  -Main singleton. arguments parsing and analytic function calls
+-<b>Preprocessor.scala</b>
+  -DataFrame pre-processing
+-<b>PatternFinder.scala</b>
+  -Correlation calculation using Spark ML
+-<b>StreamingManager.scala</b>
+  -Spark Streaming Definition
+-<b>CommonUtils.scala</b>
+  -Utility function collection
 
 ## 2. How to use
 
@@ -132,7 +132,7 @@ Spark Streaming Job은 종목의 "최근 n개 분봉"을 입력받으면,
 |Apache Spark|2.4.5|
 |spark-streaming-kafka|0.10.0|
 
-- Spark은 standalone으로 동작함
+-Spark works as standalone
 
 ### 2.2. Usage
 
@@ -147,19 +147,19 @@ spark-submit jarfile --hist-path [path1] --symb2name-path [path2] --output-dir [
         --kafka-bootstrap-server [addr] --kafka-group-id [id] --kafka-topic [topic] --batch-interval [seconds]
 
 arguments
- --hist-path: 종목별 과거 분봉 데이터 경로
- --symb2name-path: 종목코드->종목명 매핑 테이블 경로
- --output-dir: 분석 결과 저장 경로
- --kafka-bootstrap-server: 카프카 부트스트랩 주소 (localhost:9092)
- --kafka-group-id: 컨슈머 그룹 ID
- --kafka-topic: 토픽명
- --batch-interval: Spark Streaming 배치 간격 (default: 300)
+ --hist-path: Past salary data path for each event
+ --symb2name-path: item code-> item name mapping table path
+ --output-dir: path to save analysis results
+ --kafka-bootstrap-server: Kafka bootstrap address (localhost:9092)
+ --kafka-group-id: Consumer group ID
+ --kafka-topic: Topic name
+ --batch-interval: Spark Streaming batch interval (default: 300)
 ```
 
 
 
 ## 3. Future tasks
 
-- Spark Streaming과 Elasticsearch 연동, Logstash 단계 제거
-- 일봉 데이터 -> 분봉 데이터 변경 (현재 일봉 데이터로 분봉을 대체함)
-- 싱글모드 -> 클러스터 전환 성능 실험
+-Integration of Spark Streaming and Elasticsearch and removal of Logstash step
+-Daily salary data -> Change salary data (replacement of salary with current salary data)
+-Single mode -> Cluster switching performance experiment
